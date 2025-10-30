@@ -1,0 +1,38 @@
+﻿# Compiled files
+*.o
+*.out
+*.exe
+galaxy_sim
+main
+
+# Build directories
+build/
+bin/
+
+# Output files
+*.txt
+*.dat
+*.png
+*.jpg
+*.gif
+
+# Data folder contents (except .gitkeep)
+data/*
+!data/.gitkeep
+output/*
+!output/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
