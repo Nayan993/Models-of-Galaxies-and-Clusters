@@ -66,6 +66,7 @@ int main() {
 
 ## 🔗 How Everything Connects:
 ```
+below is for documentation
 main.c
   ├── calls → density.h/c (get density values)
   ├── calls → sampling.h/c (generate stars)
