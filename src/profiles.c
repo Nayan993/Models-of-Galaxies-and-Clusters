@@ -1,117 +1,45 @@
-#include "profiles.h"
-#include <math.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
+#include <math.h>
+#include "profiles.h"
+#include "density.h"
 
-#ifndef M_PI
 #define M_PI 3.14159265358979323846
+
+// Gravitational constant
+#ifndef G_kpc_kms2_Msun
+#define G_kpc_kms2_Msun 4.30091e-6
 #endif
 
-/* Gravitational constant G in units: kpc * (km/s)^2 / Msun */
-static const double G_kpc_kms2_Msun = 4.30091e-6;
+// -----------------------------------------------------------------------------
+// 1️⃣ Helper function: numerical integration for total mass M(r)
+// -----------------------------------------------------------------------------
+static double integrate_mass(profile_model_t model, double param1, double param2, double r) {
+    int steps = 1000;
+    if (r <= 0.0) return 0.0;
 
-/* Small epsilon to avoid division-by-zero */
-static const double SMALL_EPS = 1e-10;
+    double dr = r / steps;
+    double mass = 0.0;
 
-/* -------------------------------------------------------------
-   Plummer density profile:
-   ρ(r) = (3M) / (4πa^3) * (1 + (r/a)^2)^(-5/2)
-   Units: Msun / kpc^3
-------------------------------------------------------------- */
-static double plummer_density(double r, double M, double a) {
-    double x = r / a;
-    double denom = pow(1.0 + x * x, 2.5);
-    double rho0 = 3.0 * M / (4.0 * M_PI * pow(a, 3));
-    return rho0 / denom;
-}
+    for (int i = 0; i < steps; ++i) {
+        double r1 = i * dr;
+        double r2 = (i + 1) * dr;
+        double mid = 0.5 * (r1 + r2);
 
-/* -------------------------------------------------------------
-   Hernquist density profile:
-   ρ(r) = (M a) / (2π r (r + a)^3)
-   Units: Msun / kpc^3
-------------------------------------------------------------- */
-static double hernquist_density(double r, double M, double a) {
-    double rr = (r < SMALL_EPS) ? SMALL_EPS : r;
-    double denom = 2.0 * M_PI * rr * pow(rr + a, 3);
-    return (M * a) / denom;
-}
+        double rho_mid = (model == PLUMMER)
+            ? plummer_density(mid, param1, param2)
+            : hernquist_density(mid, param1, param2);
 
-/* -------------------------------------------------------------
-   Density profile selector
-------------------------------------------------------------- */
-double density_profile(profile_model_t model, double r, double M, double a) {
-    if (r < 0.0) r = 0.0;
-    switch (model) {
-        case MODEL_PLUMMER:
-            return plummer_density(r, M, a);
-        case MODEL_HERNQUIST:
-            return hernquist_density(r, M, a);
-        default:
-            return 0.0;
-    }
-}
-
-/* -------------------------------------------------------------
-   Integrand for total enclosed mass:
-   f(r) = 4π r^2 ρ(r)
-------------------------------------------------------------- */
-static double integrand(profile_model_t model, double r, double M, double a) {
-    double rho = density_profile(model, r, M, a);
-    return 4.0 * M_PI * r * r * rho;
-}
-
-/* -------------------------------------------------------------
-   Composite Simpson’s rule integration from r=0 to r=r_max
-------------------------------------------------------------- */
-static double integrate_mass_to_r(profile_model_t model,
-                                  double r_max, double M, double a, int nsteps) {
-    if (r_max <= 0.0) return 0.0;
-    if (nsteps <= 0) nsteps = 1000;
-    if (nsteps % 2 == 1) nsteps++;  // Simpson’s rule needs even intervals
-
-    double h = r_max / (double)nsteps;
-    double sum = 0.0;
-
-    double f0 = integrand(model, SMALL_EPS, M, a);
-    double fn = integrand(model, r_max, M, a);
-    sum = f0 + fn;
-
-    for (int i = 1; i < nsteps; ++i) {
-        double r_i = h * i;
-        double fi = integrand(model, r_i, M, a);
-        if (i % 2 == 0)
-            sum += 2.0 * fi;
-        else
-            sum += 4.0 * fi;
+        // dM = 4πr²ρ(r)dr
+        mass += 4.0 * M_PI * mid * mid * rho_mid * dr;
     }
 
-    double integral = (h / 3.0) * sum;
-    return integral;
+    return mass;
 }
 
-/* -------------------------------------------------------------
-   Compute mass profile M(r)
-------------------------------------------------------------- */
-int calculate_mass_profile(profile_model_t model,
-                           double M_total, double a,
-                           const double *r_values, double *mass_values,
-                           int n, int nsteps)
-{
-    if (!r_values || !mass_values || n <= 0) return -1;
-
-    for (int i = 0; i < n; ++i) {
-        if (r_values[i] < 0.0) return -2;
-        mass_values[i] = integrate_mass_to_r(model, r_values[i], M_total, a, nsteps);
-        if (mass_values[i] > M_total) mass_values[i] = M_total;  // cap for numeric overflow
-    }
-    return 0;
-}
-
-/* -------------------------------------------------------------
-   Compute circular velocity:
-   Vc(r) = sqrt(G * M(r) / r)
-------------------------------------------------------------- */
+// -----------------------------------------------------------------------------
+// 2️⃣ Helper function: compute circular velocity
+// -----------------------------------------------------------------------------
 void calculate_circular_velocity(const double *mass_values,
                                  const double *r_values,
                                  double *velocity_values, int n)
@@ -130,18 +58,21 @@ void calculate_circular_velocity(const double *mass_values,
     }
 }
 
-/* -------------------------------------------------------------
-   Save profiles to a text file
-------------------------------------------------------------- */
-int save_profiles(const char *filename,
-                  const double *r_values, const double *mass_values,
-                  const double *velocity_values, int n)
+// -----------------------------------------------------------------------------
+// 3️⃣ Helper function: safely write data to a file
+// -----------------------------------------------------------------------------
+int write_profile_to_file(const char *filename,
+                          const double *r_values,
+                          const double *mass_values,
+                          const double *velocity_values,
+                          int n)
 {
     if (!filename || !r_values || !mass_values || n <= 0) return -1;
+
     FILE *fp = fopen(filename, "w");
     if (!fp) return -2;
 
-    fprintf(fp, "# r(kpc)\tM(Msun)\t\tVc(km/s)\n");
+    fprintf(fp, "# r(kpc)\tM(Msun)\tVc(km/s)\n");
     for (int i = 0; i < n; ++i) {
         double vc = (velocity_values) ? velocity_values[i] : 0.0;
         fprintf(fp, "% .8e\t% .12e\t% .8e\n",
@@ -150,4 +81,50 @@ int save_profiles(const char *filename,
 
     fclose(fp);
     return 0;
+}
+
+// -----------------------------------------------------------------------------
+// 4️⃣ Main function: compute and save profiles (r, M(r), Vc(r))
+// -----------------------------------------------------------------------------
+void save_profiles(profile_model_t model, double param1, double param2,
+                   double r_max, const char *filename)
+{
+    int n_points = 200;
+    if (r_max <= 0.0 || filename == NULL) {
+        printf("Error: Invalid arguments to save_profiles().\n");
+        return;
+    }
+
+    double dr = r_max / n_points;
+
+    double *r_values = (double *)malloc(n_points * sizeof(double));
+    double *mass_values = (double *)malloc(n_points * sizeof(double));
+    double *vc_values = (double *)malloc(n_points * sizeof(double));
+
+    if (!r_values || !mass_values || !vc_values) {
+        printf("Error: Memory allocation failed in save_profiles().\n");
+        free(r_values); free(mass_values); free(vc_values);
+        return;
+    }
+
+    // Compute M(r)
+    for (int i = 0; i < n_points; ++i) {
+        double r = (i + 1) * dr;
+        r_values[i] = r;
+        mass_values[i] = integrate_mass(model, param1, param2, r);
+    }
+
+    // Compute Vc(r)
+    calculate_circular_velocity(mass_values, r_values, vc_values, n_points);
+
+    // Save all data safely
+    int status = write_profile_to_file(filename, r_values, mass_values, vc_values, n_points);
+    if (status == 0)
+        printf("✅ Profile saved to %s\n", filename);
+    else
+        printf("❌ Error saving profile (code %d)\n", status);
+
+    free(r_values);
+    free(mass_values);
+    free(vc_values);
 }

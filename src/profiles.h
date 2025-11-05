@@ -1,56 +1,41 @@
 #ifndef PROFILES_H
 #define PROFILES_H
 
-#include <stdio.h>
+#include "density.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// Gravitational constant (in kpc * (km/s)^2 / Msun)
+#define G_kpc_kms2_Msun 4.30091e-6  
 
-/* Model selection */
+// Enumeration for model types
 typedef enum {
-    MODEL_PLUMMER = 0,
-    MODEL_HERNQUIST = 1
+    PLUMMER,
+    HERNQUIST
 } profile_model_t;
 
-/* Compute density ρ(r) for given model:
-   r: radius (kpc)
-   M: total mass (Msun)
-   a: scale radius (kpc)
-   returns density in Msun / kpc^3
-*/
-double density_profile(profile_model_t model, double r, double M, double a);
+// Function Prototypes
 
-/* Compute mass profile M(r) at n radii.
-   r_values: array of radii (kpc) of length n (must be non-decreasing, r_values[0] >= 0)
-   mass_values: output array (Msun) length n
-   n: number of radii
-   nsteps: number of integration steps used for Simpson (per integration). If <=0 a default is used.
-*/
-int calculate_mass_profile(profile_model_t model,
-                           double M, double a,
-                           const double *r_values, double *mass_values,
-                           int n, int nsteps);
+/**
+ * @brief Calculates mass profile M(r) for a given model.
+ *
+ * @param model      Type of model (PLUMMER or HERNQUIST)
+ * @param param1     For Plummer → rho0, For Hernquist → M_total
+ * @param param2     Scale length (a)
+ * @param r_max      Maximum radius for integration
+ * @param filename   Output file to save the profile data
+ */
+void save_profiles(profile_model_t model, double param1, double param2,
+                   double r_max, const char *filename);
 
-/* Compute circular velocity Vc(r) given enclosed mass array:
-   mass_values: array of M(r) in Msun
-   r_values: array of radii in kpc
-   velocity_values: output array (km/s)
-   n: length
-*/
+/**
+ * @brief Calculates circular velocity at given radii.
+ *
+ * @param mass_values     Array of enclosed masses
+ * @param r_values        Array of radii
+ * @param velocity_values Array to store computed circular velocities
+ * @param n               Number of data points
+ */
 void calculate_circular_velocity(const double *mass_values,
                                  const double *r_values,
                                  double *velocity_values, int n);
 
-/* Save profiles to a plain text file with header:
-   # r(kpc)  M(Msun)  Vc(km/s)
-*/
-int save_profiles(const char *filename,
-                  const double *r_values, const double *mass_values,
-                  const double *velocity_values, int n);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* PROFILES_H */
+#endif // PROFILES_H
