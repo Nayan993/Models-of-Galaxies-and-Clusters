@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <math.h>
-
+#include <profiles.h>
 // gravitational constant (in kpc * (km/s)^2 / Msun)
 #define G_kpc_kms2_Msun 4.30091e-6  
+
 
 // Function to calculate circular velocity
 // calculate_circular_velocity(mass_values, r_values, velocity_values, n);
