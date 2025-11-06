@@ -107,7 +107,7 @@ int create_gnuplot_script(const char *model, const char *scriptfile, const char 
             "set terminal pngcairo size 1200,800 enhanced\n" // Output format and image size 1200*800
             "set output '%s'\n" 
             "\n"
-            "set title '3D Star Distribution: %s Model\\n'\n"  // Title on plot
+            "set title '3D Star Distribution: %s Model'\n"     // Title on plot
             "set xlabel 'X'\n"                                 // X-axis label
             "set ylabel 'Y'\n"                                 // Y-axis label
             "set zlabel 'Z'\n"                                 // Z-axis label
