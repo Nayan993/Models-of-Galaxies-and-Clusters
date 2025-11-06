@@ -8,7 +8,6 @@
 
 // Function prototypes
 double mass_integrand(double r, ModelType model, double param1, double param2);
-double simpson_integrate(double r_min, double r_max, ModelType model,
-                         double param1, double param2);
+double simpson_integrate(double r_min, double r_max, ModelType model, double param1, double param2);
 
 #endif
