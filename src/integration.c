@@ -1,39 +1,51 @@
-#include <stdio.h>
 #include <math.h>
 #include "integration.h"
 #include "density.h"
 
-// 4πr²ρ(r)
+#define PI 3.14159265358979323846
+
 double mass_integrand(double r, ModelType model, double param1, double param2) {
-    double rho = 0.0;
-
+    double density;
+    
+    // Get density at radius r
     if (model == PLUMMER) {
-        rho = plummer_density(r, param1, param2);   // rho0, a
-    } else if (model == HERNQUIST) {
-        rho = hernquist_density(r, param1, param2); // M_total, a
+        density = plummer_density(r, param1, param2);
     } else {
-        fprintf(stderr, "Error: Unknown model type!\n");
-        return 0.0;
+        density = hernquist_density(r, param1, param2);
     }
-
-    return 4.0 * M_PI * r * r * rho;
+    
+    // Return: ρ(r) × 4πr²
+    return 4.0 * PI * r * r * density;
 }
 
-// Simpson’s rule integration
-double simpson_integrate(double r_min, double r_max,
-                         ModelType model, double param1, double param2) {
+double simpson_integrate(double r_min, double r_max, ModelType model, 
+                         double param1, double param2) {
+    
+    // Number of intervals (must be even for Simpson's rule)
     int n = INTEGRATION_STEPS;
-    if (n % 2 != 0) n++;
-    double h = (r_max - r_min) / n;
-
-    double sum = mass_integrand(r_min, model, param1, param2)
-               + mass_integrand(r_max, model, param1, param2);
-
-    for (int i = 1; i < n; i++) {
-        double r = r_min + i * h;
-        double weight = (i % 2 == 0) ? 2.0 : 4.0;
-        sum += weight * mass_integrand(r, model, param1, param2);
+    if (n % 2 == 1) {
+        n++;
     }
-
+    
+    // Step size
+    double h = (r_max - r_min) / n;
+    
+    // Initialize sum with first and last terms (coefficient 1)
+    double sum = mass_integrand(r_min, model, param1, param2) + 
+                 mass_integrand(r_max, model, param1, param2);
+    
+    // Add odd-indexed terms with coefficient 4
+    for (int i = 1; i < n; i += 2) {
+        double r = r_min + i * h;
+        sum += 4.0 * mass_integrand(r, model, param1, param2);
+    }
+    
+    // Add even-indexed terms with coefficient 2
+    for (int i = 2; i < n; i += 2) {
+        double r = r_min + i * h;
+        sum += 2.0 * mass_integrand(r, model, param1, param2);
+    }
+    
+    // Multiply by h/3 to get final result
     return (h / 3.0) * sum;
 }
