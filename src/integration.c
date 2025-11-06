@@ -1,54 +1,41 @@
 #include <stdio.h>
 #include <math.h>
-#include<string.h>
 #include "integration.h"
-#include "density.h"  // Provided by your teammates
+#include "density.h"
 
-#define PI 3.141592653589793
-
-// Internal integrand for mass calculation
-static double mass_integrand(double r, void *params) {
-    IntegrationParams *p = (IntegrationParams *)params;
+// 4πr²ρ(r)
+double mass_integrand(double r, ModelType model, double param1, double param2) {
     double rho = 0.0;
 
-    // Select model based on type
-    if (strcmp(p->model, "PLUMMER") == 0) {
-        rho = plummer_density(r, p->rho0, p->a);
-    } else if (strcmp(p->model, "HERNQUIST") == 0) {
-        rho = hernquist_density(r, p->M_total, p->a);
+    if (model == PLUMMER) {
+        rho = plummer_density(r, param1, param2);   // rho0, a
+    } else if (model == HERNQUIST) {
+        rho = hernquist_density(r, param1, param2); // M_total, a
     } else {
-        fprintf(stderr, "Unknown model type in mass_integrand: %s\n", p->model);
+        fprintf(stderr, "Error: Unknown model type!\n");
         return 0.0;
     }
 
-    // Mass integrand: 4πr²ρ(r)
-    return 4.0 * PI * r * r * rho;
+    return 4.0 * M_PI * r * r * rho;
 }
 
-// Generic Simpson’s rule implementation
-double simpson_integrate(IntegrandFunc f, double a, double b, int n, void *params) {
-    if (n % 2 != 0) n++;  // Ensure even number of intervals
-    double h = (b - a) / n;
-    double sum = f(a, params) + f(b, params);
+// Simpson’s rule integration
+double simpson_integrate(double r_min, double r_max,
+                         ModelType model, double param1, double param2) {
+    int n = INTEGRATION_STEPS;
+    if (n % 2 != 0) n++;
+    double h = (r_max - r_min) / n;
+
+    double sum = mass_integrand(r_min, model, param1, param2)
+               + mass_integrand(r_max, model, param1, param2);
 
     for (int i = 1; i < n; i++) {
-        double x = a + i * h;
-        double fx = f(x, params);
-        sum += (i % 2 == 0) ? 2 * fx : 4 * fx;
+        doubl
+        
+        e r = r_min + i * h;
+        double weight = (i % 2 == 0) ? 2.0 : 4.0;
+        sum += weight * mass_integrand(r, model, param1, param2);
     }
 
     return (h / 3.0) * sum;
-}
-
-// Calculate total mass up to radius r
-double calculate_mass(double r, const char *model, double rho0, double a, double M_total) {
-    IntegrationParams params;
-    params.a = a;
-    params.rho0 = rho0;
-    params.M_total = M_total;
-    params.model = model;
-
-    // Integrate 0 → r for M(r) = ∫ 4πr²ρ(r) dr
-    double M_r = simpson_integrate(mass_integrand, 0.0, r, 1000, &params);
-    return M_r;
 }
