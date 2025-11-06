@@ -1,130 +1,165 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "profiles.h"
-#include "density.h"
-
 #define M_PI 3.14159265358979323846
+#include <profiles.h>
 
-// Gravitational constant
-#ifndef G_kpc_kms2_Msun
-#define G_kpc_kms2_Msun 4.30091e-6
-#endif
+// Forward declaration of integration function
+// This should be implemented in integration.c
+double simpson_integrate(double (*func)(double, void*), double a, double b, int n, void *params);
 
-// -----------------------------------------------------------------------------
-// 1️⃣ Helper function: numerical integration for total mass M(r)
-// -----------------------------------------------------------------------------
-static double integrate_mass(profile_model_t model, double param1, double param2, double r) {
-    int steps = 1000;
-    if (r <= 0.0) return 0.0;
+// Structure to pass parameters to integration function
+typedef struct {
+    ModelType model;
+    double param1;
+    double param2;
+} IntegrationParams;
 
-    double dr = r / steps;
-    double mass = 0.0;
-
-    for (int i = 0; i < steps; ++i) {
-        double r1 = i * dr;
-        double r2 = (i + 1) * dr;
-        double mid = 0.5 * (r1 + r2);
-
-        double rho_mid = (model == PLUMMER)
-            ? plummer_density(mid, param1, param2)
-            : hernquist_density(mid, param1, param2);
-
-        // dM = 4πr²ρ(r)dr
-        mass += 4.0 * M_PI * mid * mid * rho_mid * dr;
-    }
-
-    return mass;
+// Integrand for mass calculation: ρ(r) * 4π * r²
+static double mass_integrand(double r, void *params) {
+    IntegrationParams *p = (IntegrationParams *)params;
+    double rho = calculate_density(p->model, r, p->param1, p->param2);
+    return 4.0 * M_PI * r * r * rho;
 }
 
-// -----------------------------------------------------------------------------
-// 2️⃣ Helper function: compute circular velocity
-// -----------------------------------------------------------------------------
-void calculate_circular_velocity(const double *mass_values,
-                                 const double *r_values,
-                                 double *velocity_values, int n)
-{
-    if (!mass_values || !r_values || !velocity_values || n <= 0) return;
-
-    for (int i = 0; i < n; ++i) {
+void calculate_mass_profile(ModelType model, double param1, double param2,
+                           double *r_values, double *mass_values, int n_points) {
+    IntegrationParams params;
+    params.model = model;
+    params.param1 = param1;
+    params.param2 = param2;
+    
+    printf("Calculating mass profile...\n");
+    
+    for (int i = 0; i < n_points; i++) {
         double r = r_values[i];
-        double m = mass_values[i];
-        if (r <= 0.0 || m <= 0.0) {
-            velocity_values[i] = 0.0;
-        } else {
-            double vc2 = G_kpc_kms2_Msun * m / r;
-            velocity_values[i] = (vc2 > 0.0) ? sqrt(vc2) : 0.0;
+        
+        if (r < 1e-10) {
+            mass_values[i] = 0.0;
+            continue;
+        }
+        
+        // M(r) = ∫₀ʳ ρ(r') * 4π * r'² dr'
+        int n_steps = 500;
+        mass_values[i] = simpson_integrate(mass_integrand, 0.0, r, n_steps, &params);
+        
+        // Progress indicator
+        if (n_points >= 10 && (i + 1) % (n_points / 10) == 0) {
+            printf("  Progress: %d/%d (%.0f%%)\n", 
+                   i + 1, n_points, 100.0 * (i + 1) / n_points);
         }
     }
+    
+    printf("Mass profile complete.\n");
 }
 
-// -----------------------------------------------------------------------------
-// 3️⃣ Helper function: safely write data to a file
-// -----------------------------------------------------------------------------
-int write_profile_to_file(const char *filename,
-                          const double *r_values,
-                          const double *mass_values,
-                          const double *velocity_values,
-                          int n)
-{
-    if (!filename || !r_values || !mass_values || n <= 0) return -1;
+void calculate_circular_velocity(double *mass_values, double *r_values,
+                                double *velocity_values, int n_points) {
+    printf("Calculating circular velocity...\n");
+    
+    for (int i = 0; i < n_points; i++) {
+        double r = r_values[i];
+        double M = mass_values[i];
+        
+        if (r < 1e-10) {
+            velocity_values[i] = 0.0;
+            continue;
+        }
+        
+        // Vc(r) = sqrt(G * M(r) / r)
+        double Vc_kpc_gyr = sqrt(G_CONST * M / r);
+        
+        // Convert to km/s
+        velocity_values[i] = Vc_kpc_gyr * (KPC_TO_KM / GYR_TO_S);
+        
+        // Progress indicator
+        if (n_points >= 10 && (i + 1) % (n_points / 10) == 0) {
+            printf("  Progress: %d/%d (%.0f%%)\n", 
+                   i + 1, n_points, 100.0 * (i + 1) / n_points);
+        }
+    }
+    
+    printf("Circular velocity complete.\n");
+}
 
+void save_profile_data(const char *filename, double *r_values, 
+                      double *mass_values, double *velocity_values, int n_points) {
     FILE *fp = fopen(filename, "w");
-    if (!fp) return -2;
-
-    fprintf(fp, "# r(kpc)\tM(Msun)\tVc(km/s)\n");
-    for (int i = 0; i < n; ++i) {
-        double vc = (velocity_values) ? velocity_values[i] : 0.0;
-        fprintf(fp, "% .8e\t% .12e\t% .8e\n",
-                r_values[i], mass_values[i], vc);
+    if (fp == NULL) {
+        fprintf(stderr, "ERROR: Cannot open file '%s'\n", filename);
+        return;
     }
-
+    
+    // Write header
+    fprintf(fp, "# Galaxy Profile Data\n");
+    fprintf(fp, "# r(kpc)         M(Msun)          Vc(km/s)\n");
+    fprintf(fp, "#----------------------------------------------\n");
+    
+    // Write data
+    for (int i = 0; i < n_points; i++) {
+        fprintf(fp, "%.8e  %.8e  %.8e\n", 
+                r_values[i], mass_values[i], velocity_values[i]);
+    }
+    
     fclose(fp);
-    return 0;
+    printf("Saved to: %s\n", filename);
 }
 
-// -----------------------------------------------------------------------------
-// 4️⃣ Main function: compute and save profiles (r, M(r), Vc(r))
-// -----------------------------------------------------------------------------
-void save_profiles(profile_model_t model, double param1, double param2,
-                   double r_max, const char *filename)
-{
-    int n_points = 200;
-    if (r_max <= 0.0 || filename == NULL) {
-        printf("Error: Invalid arguments to save_profiles().\n");
+void save_profiles(ModelType model, double param1, double param2, 
+                  double r_max, const char *filename) {
+    const int N_POINTS = 200;
+    
+    // Allocate arrays
+    double *r_values = (double *)malloc(N_POINTS * sizeof(double));
+    double *mass_values = (double *)malloc(N_POINTS * sizeof(double));
+    double *velocity_values = (double *)malloc(N_POINTS * sizeof(double));
+    
+    if (r_values == NULL || mass_values == NULL || velocity_values == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation failed\n");
+        if (r_values) free(r_values);
+        if (mass_values) free(mass_values);
+        if (velocity_values) free(velocity_values);
         return;
     }
-
-    double dr = r_max / n_points;
-
-    double *r_values = (double *)malloc(n_points * sizeof(double));
-    double *mass_values = (double *)malloc(n_points * sizeof(double));
-    double *vc_values = (double *)malloc(n_points * sizeof(double));
-
-    if (!r_values || !mass_values || !vc_values) {
-        printf("Error: Memory allocation failed in save_profiles().\n");
-        free(r_values); free(mass_values); free(vc_values);
-        return;
+    
+    // Generate logarithmic radial grid
+    double r_min = r_max / 1000.0;
+    for (int i = 0; i < N_POINTS; i++) {
+        double log_r_min = log10(r_min);
+        double log_r_max = log10(r_max);
+        double log_r = log_r_min + (log_r_max - log_r_min) * i / (N_POINTS - 1);
+        r_values[i] = pow(10.0, log_r);
     }
-
-    // Compute M(r)
-    for (int i = 0; i < n_points; ++i) {
-        double r = (i + 1) * dr;
-        r_values[i] = r;
-        mass_values[i] = integrate_mass(model, param1, param2, r);
+    
+    // Print header
+    printf("\n--- %s Model ---\n", model == PLUMMER ? "PLUMMER" : "HERNQUIST");
+    
+    // Calculate profiles
+    calculate_mass_profile(model, param1, param2, r_values, mass_values, N_POINTS);
+    calculate_circular_velocity(mass_values, r_values, velocity_values, N_POINTS);
+    
+    // Print statistics
+    printf("\nStatistics:\n");
+    printf("  r_min = %.6e kpc, r_max = %.6e kpc\n", r_values[0], r_values[N_POINTS-1]);
+    printf("  M_total = %.6e Msun\n", mass_values[N_POINTS-1]);
+    printf("  Vc(r_max) = %.2f km/s\n", velocity_values[N_POINTS-1]);
+    
+    // Find peak velocity
+    double max_vel = 0.0;
+    double r_peak = 0.0;
+    for (int i = 0; i < N_POINTS; i++) {
+        if (velocity_values[i] > max_vel) {
+            max_vel = velocity_values[i];
+            r_peak = r_values[i];
+        }
     }
-
-    // Compute Vc(r)
-    calculate_circular_velocity(mass_values, r_values, vc_values, n_points);
-
-    // Save all data safely
-    int status = write_profile_to_file(filename, r_values, mass_values, vc_values, n_points);
-    if (status == 0)
-        printf("✅ Profile saved to %s\n", filename);
-    else
-        printf("❌ Error saving profile (code %d)\n", status);
-
+    printf("  Vc_max = %.2f km/s at r = %.6e kpc\n", max_vel, r_peak);
+    
+    // Save to file
+    save_profile_data(filename, r_values, mass_values, velocity_values, N_POINTS);
+    
+    // Free memory
     free(r_values);
     free(mass_values);
-    free(vc_values);
+    free(velocity_values);
 }
