@@ -30,9 +30,7 @@ double simpson_integrate(double r_min, double r_max,
                + mass_integrand(r_max, model, param1, param2);
 
     for (int i = 1; i < n; i++) {
-        doubl
-        
-        e r = r_min + i * h;
+        double r = r_min + i * h;
         double weight = (i % 2 == 0) ? 2.0 : 4.0;
         sum += weight * mass_integrand(r, model, param1, param2);
     }
