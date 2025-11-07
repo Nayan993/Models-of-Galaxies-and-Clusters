@@ -64,7 +64,7 @@ void ensure_dir_exists(const char *path)
     }
 }
 
-int save_stars(const double (*stars)[3], int N, const char *filename)
+int save_stars(const Star *stars, int N, const char *filename)
 {
     ensure_dir_exists("data"); // Make sure data folder exists
 
@@ -82,7 +82,7 @@ int save_stars(const double (*stars)[3], int N, const char *filename)
     for (int i = 0; i < N; i++)
     {
         // Print each star's (x, y, z) with 6 decimal precision
-        fprintf(fp, "%.6f,%.6f,%.6f\n", stars[i][0], stars[i][1], stars[i][2]);
+        fprintf(fp, "%.6f,%.6f,%.6f\n", stars[i].x, stars[i].y, stars[i].z);
     }
 
     fclose(fp); // Close the file to free resources

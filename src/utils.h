@@ -2,20 +2,22 @@
 #define UTILS_H
 
 #include <stdio.h>
+#include "sampling.h" 
 
 /**
  * @brief Save star coordinates to a CSV file.
  *
- * @param stars 2D array of shape [N][3] representing (x, y, z)
- * @param N Number of stars
- * @param filename Output CSV file path
+ * @param stars Pointer to array of Star structures.
+ * @param N Number of stars to write.
+ * @param filename Output CSV file path (e.g., "data/plummer_stars.csv").
  * @return 0 on success, -1 on failure
  */
 int save_stars(
-    const double (*stars)[3], 
+    const Star *stars, 
     int N, 
     const char *filename
 );
+
 
 /**
  * @brief Generate a 3D Gnuplot script for visualizing a model's stars.
