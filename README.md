@@ -120,9 +120,9 @@ Main.c → Sampling → Density → Integration → Profiles → Utils → Outpu
 
 ## 👥 Contributors
 
-| Name | Reg No | Contribution |
-|-------|-----------|----------------|
-| **Nayan Mishra** | Team Lead, main.c, Sampling |
+| Name | Contribution |
+|------|--------------|
+| **Nayan Mishra** | Team Lead, `main.c`, Sampling |
 | **Anuj Sahu** | Plummer Density Model |
 | **Sonu Kumar** | Hernquist Density Model |
 | **Anshi Tiwari** | Simpson's Integration Logic |
