@@ -122,17 +122,17 @@ Main.c → Sampling → Density → Integration → Profiles → Utils → Outpu
 
 | Name | Reg No | Contribution |
 |-------|-----------|----------------|
-| **Nayan Mishra** | 2025CA062 | Team Lead, main.c, Sampling |
-| **Anuj Sahu** | 2025CA017 | Plummer Density Model |
-| **Sonu Kumar** | 2025CA098 | Hernquist Density Model |
-| **Anshi Tiwari** | 2025CA016 | Simpson's Integration Logic |
-| **Komal Kushwaha** | 2025CA051 | Integration Optimization & Validation |
-| **Vineet Kumar** | 2025CA110 | Mass & Velocity Profile Calculations |
-| **Ajayveer Chauhan** | 2025CA009 | Output Storage & File Writing |
-| **Abhishek Kapoor** | 2025CA002 | Utility Functions |
-| **Himanshu Thakur** | 2025CA105 | Utils & Support |
-| **Pragati Singh** | 2025CA070 | Documentation, PPT, README |
-| **Harshit Raj** | 2025CA041 | PPT, Documentation, README Formatting |
+| **Nayan Mishra** | Team Lead, main.c, Sampling |
+| **Anuj Sahu** | Plummer Density Model |
+| **Sonu Kumar** | Hernquist Density Model |
+| **Anshi Tiwari** | Simpson's Integration Logic |
+| **Komal Kushwaha** | Integration Optimization & Validation |
+| **Vineet Kumar** | Mass & Velocity Profile Calculations |
+| **Ajayveer Chauhan** | Output Storage & File Writing |
+| **Abhishek Kapoor** | Utility Functions |
+| **Himanshu Thakur** | Utils & Support |
+| **Pragati Singh** | Documentation, PPT, README |
+| **Harshit Raj** | PPT, Documentation, README Formatting |
 
 ---
 
